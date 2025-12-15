@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import torch
+
 MATMUL_REDUCTION_OP = "matmul"
 BATCH_MATMUL_OP = "batchmatmul"
 TRANSPOSE_OP = "transpose"
@@ -47,4 +49,11 @@ SPYRE_FP32_OPS = [
     "sigmoid",
     "exx2",
     "layernormnorm",
+]
+
+BINARY_OPS = [
+    torch.ops.aten.add.__name__,
+    torch.ops.aten.sub.__name__,
+    torch.ops.aten.mul.__name__,
+    torch.ops.aten.div.__name__,
 ]

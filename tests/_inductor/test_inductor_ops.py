@@ -181,6 +181,8 @@ class TestOps(unittest.TestCase, metaclass=ParameterizedTestMeta):
                 "square": lambda x: x * x,
                 "cube": lambda x: x * x * x,
                 "triple": lambda x: x + x + x,
+                "torch_mul": lambda x: torch.mul(x, x),
+                "torch_pow": lambda x: torch.pow(x, 2),
             },
             "param_sets": make_param_dict(
                 [
@@ -422,11 +424,12 @@ class TestOps(unittest.TestCase, metaclass=ParameterizedTestMeta):
             # TODO: Division by 0 or near-zero differs on Spyre from CPU, sidestep for now.
             tiny_value_mask = torch.abs(x) < FP16_EPS
             x[tiny_value_mask] = FP16_EPS
-
         cpu_ops = {
             torch.cos,  # CPU fallback
             torch.exp,  # TODO: eager / sendnn results are radically differ from CPU. deeptools bug?
             torch.sin,  # CPU fallback
+            torch.mul,
+            torch.pow,
         }
         if op in cpu_ops:
             compare_with_cpu(op, x)

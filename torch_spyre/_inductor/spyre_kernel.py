@@ -37,6 +37,7 @@ from .constants import (
     BATCH_MATMUL_OP,
     TRANSPOSE_OP,
     CLONE_OP,
+    BINARY_OPS,
 )
 from . import Unsupported
 from .opoverrides import SpyreKernelOverrides
@@ -342,6 +343,25 @@ class SpyreKernel(SIMDKernel[SpyreKernelCSEVariable]):
                     scale = self.analyze_tensor_access(di, input.index)
                     if self.compute_op == "layernormscale":
                         scale[-1] = -2
+                    args.append(
+                        create_tensor_arg(
+                            True,
+                            actuals.index(input.name),
+                            input.layout,
+                        )
+                    )
+                    scales.append(scale)
+                else:
+                    args.append(ConstantArg(input.value, input.dtype))
+                    scales.append([-1] * len(di))
+            # Avoid single argument for a binary operator.
+            # See https://github.com/torch-spyre/torch-spyre/issues/145#issuecomment-3673902821
+            if self.spyre_op in BINARY_OPS and len(self.compute_inputs) == 1:
+                if self.spyre_op is not torch.ops.aten.mul.__name__:
+                    raise RuntimeError(f"Binary op {self.spyre_op} with single input")
+                input = self.compute_inputs[0]
+                if isinstance(input, TensorAccess):
+                    scale = self.analyze_tensor_access(di, input.index)
                     args.append(
                         create_tensor_arg(
                             True,
