@@ -440,6 +440,13 @@ class TestOps(unittest.TestCase, metaclass=ParameterizedTestMeta):
                 },
             },
         },
+        (
+            "test_expand",
+            "test_expand_cpu",
+        ): {
+            "param_sets": {
+            },
+        },
     }
 
     def __init__(self, *args, **kwargs):
