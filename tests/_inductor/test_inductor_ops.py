@@ -140,7 +140,7 @@ class TestOps(unittest.TestCase, metaclass=ParameterizedTestMeta):
             "ops_dict": {
                 "mm": torch.mm,
                 "matmul": torch.matmul,
-                # "einsum": lambda a, b: torch.einsum('mk, kn -> mn', a, b),  # bmm not supported yet
+                "einsum": lambda a, b: torch.einsum('mk, kn -> mn', a, b),  # bmm not supported yet
             },
             "param_sets": make_param_dict(
                 [
