@@ -463,6 +463,33 @@ class TestOps(unittest.TestCase, metaclass=ParameterizedTestMeta):
                 ),
             },
         },
+        (
+            "test_expand",
+            "test_expand_cpu",
+        ): {
+            "param_sets": {
+                "repeat_kv": (
+                    cached_randn((1, 1, 1, 1, 128)),
+                    (1, 1, 2, 1, 128),
+                ),
+                "gpt_rope": (
+                    cached_randn((1, 2, 128)),
+                    (2, -1, 128),
+                ),
+                "eager_attn": (
+                    cached_randn((1, 2, 1, 128)),
+                    (2, -1, 2, -1),
+                ),
+                "4d_attn": (
+                    cached_randn((1, 1, 2, 128)),
+                    (2, 1, -1, -1),
+                ),
+                "seg_sum": (
+                    cached_randn((2, 2, 128, 1)),
+                    (2, 2, 128, 128),
+                ),
+            },
+        },
     }
 
     def __init__(self, *args, **kwargs):
@@ -602,6 +629,9 @@ class TestOps(unittest.TestCase, metaclass=ParameterizedTestMeta):
             return torch.full(*args, dtype=torch.float16, device=device)
 
         compare_with_cpu(fn, needs_device=True)
+
+    def test_expand_cpu(self, input, sizes):
+        compare_with_cpu(lambda x: x.expand(sizes).contiguous(), input)
 
 
 if __name__ == "__main__":
