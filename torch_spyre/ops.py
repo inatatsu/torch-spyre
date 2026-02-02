@@ -14,6 +14,7 @@
 
 import torch
 import torch_spyre.fallbacks  # noqa: F401
+from typing import Union
 
 
 @torch.library.register_kernel("aten::mm", ["spyre"])
@@ -28,3 +29,9 @@ def spyre__mm_out(
 ) -> torch.Tensor:
     compiled_mm = torch.compile(torch.mm, dynamic=False)
     return compiled_mm(self, mat2, out=out)
+
+@torch.library.register_kernel("aten::pow.Tensor_Scalar", ["spyre"])
+def spyre__pow_Tensor_Scalar(self: torch.Tensor, exponent: Union[int, float, bool, complex]) -> torch.Tensor:
+    # Standard variant
+    compiled_pow = torch.compile(torch.pow, dynamic=False)
+    return compiled_pow(self, exponent)

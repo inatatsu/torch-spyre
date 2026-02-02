@@ -118,11 +118,32 @@ sendnn::GraphLoader& parseGraphLoader(
         inp_strides /*= std::nullopt*/) {
   // will be refactored
 
-  int compute_op_idx = 1;
-  int sen_host_compute_op_idx = 2;
+  // Dynamically determine compute_op_idx based on actual graph structure
+  // For single-input operations (sn_idx=0), the super node is at index 0
+  // For multi-input operations (sn_idx=1), the super node is at index 1
+  auto& compute_ops = gl.GetG2s()[0].compute_ops_;
+  int compute_op_idx = (compute_ops.size() > 1) ? 1 : 0;
+  int sen_host_compute_op_idx = compute_op_idx + 1;
+
+  // Bounds check before accessing compute_ops_
+  if (compute_op_idx >= static_cast<int>(compute_ops.size())) {
+    DEBUGINFO("Warning: compute_op_idx (", compute_op_idx,
+              ") exceeds compute_ops size (", compute_ops.size(),
+              "). Skipping parseGraphLoader modifications.");
+    auto p_s = gl.ParseGraph();
+    return gl;
+  }
 
   auto* attrs_super = dynamic_cast<sendnn::attributes::SenSuperNodeV2*>(
-      gl.GetG2s()[0].compute_ops_[compute_op_idx]->Attrs());
+      compute_ops[compute_op_idx]->Attrs());
+
+  // Check if dynamic_cast succeeded
+  if (attrs_super == nullptr) {
+    DEBUGINFO("Warning: Failed to cast to SenSuperNodeV2. Skipping parseGraphLoader modifications.");
+    auto p_s = gl.ParseGraph();
+    return gl;
+  }
+
   std::string attrs_super_json_str;
   sendnn::SerializeToString(&attrs_super_json_str, *attrs_super);
   json attrs_super_json = json::parse(attrs_super_json_str);
@@ -176,6 +197,16 @@ sendnn::GraphLoader& parseGraphLoader(
   }
 
   if (out_shape.has_value() && out_stride.has_value()) {
+    // Bounds check for sen_host_compute_op_idx
+    if (sen_host_compute_op_idx >= static_cast<int>(attrs_super->execution_graph_.compute_ops_.size())) {
+      DEBUGINFO("Warning: sen_host_compute_op_idx (", sen_host_compute_op_idx,
+                ") exceeds execution_graph compute_ops size (",
+                attrs_super->execution_graph_.compute_ops_.size(),
+                "). Skipping output stride modification.");
+      auto p_s = gl.ParseGraph();
+      return gl;
+    }
+
     auto* attrs_hostcompute = dynamic_cast<sendnn::attributes::SenHostCompute*>(
         attrs_super->execution_graph_.compute_ops_[sen_host_compute_op_idx]
             ->Attrs());
