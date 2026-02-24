@@ -320,3 +320,39 @@ def lt_decomp(
     out_le = torch.le(input, other).to(dtype=torch.float16)
     out_ne = torch.ne(input, other).to(dtype=torch.float16)
     return torch.mul(out_le, out_ne, out=out).to(dtype=torch.bool)
+
+
+@register_spyre_decomposition([torch.ops.aten.addmm.default, torch.ops.aten.addmm.out])
+def addmm_decomp(
+    input: torch.Tensor,
+    mat1: torch.Tensor,
+    mat2: torch.Tensor,
+    *,
+    beta: Union[int, float] = 1,
+    alpha: Union[int, float] = 1,
+    out: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """
+    Decompose addmm into basic operations: out = beta * input + alpha * (mat1 @ mat2)
+    """
+    # Compute matrix multiplication
+    mm_result = torch.mm(mat1, mat2)
+
+    # Apply alpha scaling if needed
+    if alpha != 1:
+        mm_result = alpha * mm_result
+
+    # Apply beta scaling and add input if needed
+    if beta == 0:
+        result = mm_result
+    elif beta == 1:
+        result = input + mm_result
+    else:
+        result = beta * input + mm_result
+
+    # Handle out parameter
+    if out is not None:
+        out.copy_(result)
+        return out
+
+    return result
