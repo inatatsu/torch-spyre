@@ -32,7 +32,7 @@ from torch_spyre._inductor.logging_utils import get_inductor_logger
 from torch_spyre._inductor.op_spec import OpSpec
 from torch_spyre._inductor.op_spec import TensorArg
 
-from .compute_ops import generate_sdsc
+from .compute_ops import generate_sdsc as generate_sdsc_from_spec
 
 logger = get_inductor_logger("codegen.superdsc")
 
@@ -398,5 +398,7 @@ def compile_op_spec(kernel_name: str, op_spec: OpSpec) -> tuple[Any, list[int]]:
     logger.debug("%s", sdsc_spec)
 
     arg_map = [ts.arg_index for ts in op_spec.args]
-    dt_sdsc = generate_sdsc(sdsc_spec)
+    dt_sdsc = generate_sdsc_from_spec(sdsc_spec)
     return dt_sdsc, arg_map
+
+

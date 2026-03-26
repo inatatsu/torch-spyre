@@ -503,3 +503,58 @@ def clone(x, *, memory_format=None):
         result.realize()
         result.freeze_layout_with_stride_order(stride_order)
     return result
+
+
+@register_spyre_lowering(torch.ops.spyre.fused_attention_bmm_softmax)
+def lower_fused_attention_bmm_softmax(query, key_transposed, scale):
+    """
+    Lower fused attention BMM + Softmax to SpyreReduction IR.
+
+    This creates a reduction node that will be code-generated into a
+    fused SuperDSC with tiled BMM and softmax operations.
+    """
+    query.realize()
+    key_transposed.realize()
+
+    q_loader = query.make_loader()
+    k_loader = key_transposed.make_loader()
+
+    q_size = query.get_size()
+    k_size = key_transposed.get_size()
+
+    # Query: [B, H, S_q, D]
+    # Key_T: [B, H, D, S_k]
+    # Output: [B, H, S_q, S_k]
+
+    def inner_fn(index, reduction_index):
+        i0, i1, i2, i3 = index  # batch, heads, seq_q, seq_k
+        (r0,) = reduction_index  # hidden_dim (D)
+        return (q_loader([i0, i1, i2, r0]), k_loader([i0, i1, r0, i3]))
+
+    op_info = {
+        "constants": {"scaling_factor": scale},
+        "fusion_type": "bmm_softmax",
+        "softmax_axis": -1,
+    }
+
+    result = SpyreReduction.create(
+        reduction_type="fused_bmm_softmax",
+        input_node=[query, key_transposed],
+        device=query.get_device(),
+        dst_dtype=query.get_dtype(),
+        src_dtype=query.get_dtype(),
+        inner_fn=inner_fn,
+        ranges=[q_size[0], q_size[1], q_size[2], k_size[3]],  # [B, H, S_q, S_k]
+        reduction_ranges=[q_size[3]],  # D (hidden dimension)
+        op_info=op_info,
+    )
+    result.realize()
+
+    if logger.isEnabledFor(logging.DEBUG):
+        result_buf = V.graph.get_buffer(result.get_name())
+        logger.debug(
+            f"fused_attention_bmm_softmax: q{[int(s) for s in q_size]} @ k_t{[int(s) for s in k_size]} "
+            f"-> {[int(s) for s in result_buf.get_size()]}, scale={scale}"
+        )
+
+    return result

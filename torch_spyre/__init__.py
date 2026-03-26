@@ -79,6 +79,11 @@ class _SpyreImpl:
 
             _register_spyre_dispatchkey_kernels_permanently()
 
+            # Register flash attention backend
+            from torch_spyre.attention import register_spyre_flash_attention
+
+            register_spyre_flash_attention()
+
     def _is_in_bad_fork(self) -> bool:
         return self._in_bad_fork
 

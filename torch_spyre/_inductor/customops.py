@@ -205,3 +205,40 @@ def _ones_scalar_fake(
     dtype: Optional[torch.dtype] = None,
 ):
     return torch.empty(1, dtype=dtype, device="spyre")
+
+
+@torch.library.custom_op(
+    "spyre::fused_attention_bmm_softmax", mutates_args=(), device_types="spyre"
+)
+def fused_attention_bmm_softmax(
+    query: torch.Tensor,
+    key_transposed: torch.Tensor,
+    scale: float,
+) -> torch.Tensor:
+    """
+    Fused batch matrix multiplication and softmax for attention.
+
+    This op fuses the computation of attention_scores = softmax(Q @ K^T * scale)
+    to optimize memory bandwidth and enable tiled computation.
+
+    Args:
+        query: Query tensor [B, H, S_q, D]
+        key_transposed: Transposed key tensor [B, H, D, S_k]
+        scale: Scaling factor for attention scores
+
+    Returns:
+        Attention weights [B, H, S_q, S_k]
+    """
+    pass
+
+
+@fused_attention_bmm_softmax.register_fake
+def _(
+    query: torch.Tensor,
+    key_transposed: torch.Tensor,
+    scale: float,
+) -> torch.Tensor:
+    # Output shape: [B, H, S_q, S_k]
+    batch, heads, seq_q, _ = query.shape
+    seq_k = key_transposed.shape[-1]
+    return query.new_empty(batch, heads, seq_q, seq_k)
