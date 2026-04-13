@@ -31,9 +31,9 @@ from torch.testing._internal.common_device_type import (
     PrivateUse1TestBase,
     ops,
     instantiate_device_type_tests,
+    device_type_test_bases,
 )
 from op_registry import OP_REGISTRY, OpAdapter
-
 
 class ModelOpInfo(OpInfo):
     """operator information for model-centric verification."""
@@ -221,4 +221,10 @@ class TestSpyreModelOps(PrivateUse1TestBase):
 
 # Instantiate device type tests for the TestSpyreModelOps class
 # This is required for @ops decorator to work properly
+device_type_test_bases[:] = [  # type: ignore[name-defined] # noqa: F821
+    b
+    for b in device_type_test_bases  # type: ignore[name-defined] # noqa: F821
+    if b is not PrivateUse1TestBase  # type: ignore[name-defined] # noqa: F821
+]
+
 instantiate_device_type_tests(TestSpyreModelOps, globals())
