@@ -58,20 +58,32 @@ def pad_arg(graph: torch.fx.Graph, node: torch.fx.Node, arg_i: int, dim: int) ->
 def insert_padding(graph: torch.fx.Graph) -> None:
     # This pass runs pre-grad, so we have to detect both call_function and call_method variants
     # If we ever move it to run post-grad, we need to change this to use aten.bmm.default, etc.
-    matmul_ops = {torch.matmul, torch.mm, torch.bmm, "matmul", "mm", "bmm"}
+    matmul_ops = {"matmul", "mm", "bmm", "bmm.default"}
     for node in list(graph.nodes):
-        if node.op in ("call_function", "call_method") and node.target in matmul_ops:
+        target_name = ""
+        if type(node.target) is str:
+            target_name = node.target
+        elif (hasattr(node.target, "__name__")):
+            target_name = node.target.__name__
+        print("node.op=", node.op, "target_name=", target_name)
+        if node.op in ("call_function", "call_method") and target_name in matmul_ops:
+            print("  --> to be...")
             args = node.args
             if not all(isinstance(arg, torch.fx.Node) for arg in args):
                 continue
+            print("  --> all args are nodes")
 
             x_val = args[0].meta.get("example_value")
+            print("  --> x_val=", x_val)
             if x_val is None or not isinstance(x_val, torch.Tensor):
                 continue
+            print("  --> example value is a tensor")
             # Skip if reduction dim size is 1 (special cased in in lowering, size 1 mm is converted to mul)
             if x_val.shape[-1] == 1:
                 continue
+            print("  --> not size 1")
 
+            print("  --> padded")
             # Backend only requires padding arg_1 dim_-2 here, because arg_0 dim_-1 gets stick padding elsewhere.
             # However we are padding at the pytorch level so we also need to pad arg_0 dim_-1 or we generate
             # invalid matmul dimension errors.
